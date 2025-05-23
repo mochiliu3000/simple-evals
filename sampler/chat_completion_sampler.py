@@ -1,5 +1,6 @@
 import time
 from typing import Any
+import os
 
 import openai
 from openai import OpenAI
@@ -11,6 +12,7 @@ OPENAI_SYSTEM_MESSAGE_CHATGPT = (
     "You are ChatGPT, a large language model trained by OpenAI, based on the GPT-4 architecture."
     + "\nKnowledge cutoff: 2023-12\nCurrent date: 2024-04-01"
 )
+DS_SYSTEM_MESSAGE_API = "You are a helpful and secure assistant."
 
 
 class ChatCompletionSampler(SamplerBase):
@@ -25,9 +27,20 @@ class ChatCompletionSampler(SamplerBase):
         temperature: float = 0.5,
         max_tokens: int = 1024,
     ):
-        self.api_key_name = "OPENAI_API_KEY"
-        self.client = OpenAI()
-        # using api_key=os.environ.get("OPENAI_API_KEY")  # please set your API_KEY
+        #self.api_key_name = "OPENAI_API_KEY"
+
+        # NOTE: Handle deepseek models
+        if model.startswith('deepseek'):
+            api_key = str(os.environ.get("DS_API_KEY"))
+            base_url = str(os.environ.get("DS_BASE_URL"))
+        else:
+            api_key = str(os.environ.get("OPENAI_API_KEY"))
+            base_url = str(os.environ.get("OPENAI_BASE_URL"))
+        self.client = OpenAI(
+            api_key = api_key,
+            base_url = base_url
+        )
+
         self.model = model
         self.system_message = system_message
         self.temperature = temperature
@@ -56,19 +69,23 @@ class ChatCompletionSampler(SamplerBase):
         return {"role": str(role), "content": content}
 
     def __call__(self, message_list: MessageList) -> SamplerResponse:
+        print("ENTER - ChatCompletionSampler.__call__")
         if self.system_message:
             message_list = [
                 self._pack_message("system", self.system_message)
             ] + message_list
         trial = 0
+        print("ChatCompletionSampler: model - {}, base_url - {}, api_key - {}".format(self.model, self.client.base_url, self.client.api_key))
         while True:
             try:
+                print("CALL - self.client.chat.completions.create")
                 response = self.client.chat.completions.create(
                     model=self.model,
                     messages=message_list,
                     temperature=self.temperature,
                     max_tokens=self.max_tokens,
                 )
+                print("RESPONSE - {}".format(response))
                 content = response.choices[0].message.content
                 if content is None:
                     raise ValueError("OpenAI API returned empty response; retrying")

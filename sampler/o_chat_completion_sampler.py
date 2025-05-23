@@ -1,5 +1,6 @@
 import time
 from typing import Any
+import os
 
 import openai
 from openai import OpenAI
@@ -18,9 +19,21 @@ class OChatCompletionSampler(SamplerBase):
         reasoning_effort: str | None = None,
         model: str = "o1-mini",
     ):
-        self.api_key_name = "OPENAI_API_KEY"
-        self.client = OpenAI()
+        # self.api_key_name = "OPENAI_API_KEY"
+        # self.client = OpenAI()
         # using api_key=os.environ.get("OPENAI_API_KEY")  # please set your API_KEY
+        # NOTE: Handle deepseek models
+        if model.startswith('deepseek'):
+            api_key = str(os.environ.get("DS_API_KEY"))
+            base_url = str(os.environ.get("DS_BASE_URL"))
+        else:
+            api_key = str(os.environ.get("OPENAI_API_KEY"))
+            base_url = str(os.environ.get("OPENAI_BASE_URL"))
+        self.client = OpenAI(
+            api_key = api_key,
+            base_url = base_url
+        )
+        
         self.model = model
         self.image_format = "url"
         self.reasoning_effort = reasoning_effort
@@ -47,6 +60,7 @@ class OChatCompletionSampler(SamplerBase):
         return {"role": str(role), "content": content}
 
     def __call__(self, message_list: MessageList) -> SamplerResponse:
+        print("ENTER - OChatCompletionSampler.__call__")
         trial = 0
         while True:
             try:

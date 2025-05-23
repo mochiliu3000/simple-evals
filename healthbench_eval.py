@@ -1,10 +1,22 @@
 """
 This script evaluates the performance of a model on the HealthBench dataset.
 
-To run HealthBench, HealthBench Consensus, or HealthBench Hard, use the simple-evals script:
+To run HealthBench, HealthBench Consensus, or HealthBench Hard, use the simple-evals 
+
+# 1. Uninstall old version package
+pip uninstall simple-evals
+
+# 2. Install new version package
+pip install -e simple-evals
+
+# 3. Run HealthBench
+script:
 - `python -m simple-evals.simple_evals --eval=healthbench --model=gpt-4.1`
 - `python -m simple-evals.simple_evals --eval=healthbench_consensus --model=gpt-4.1`
 - `python -m simple-evals.simple_evals --eval=healthbench_hard --model=gpt-4.1`
+
+- `python -m simple-evals.simple_evals --n-threads=1 --eval=healthbench --model=deepseek-chat`
+- `python -m simple-evals.simple_evals --n-threads=1 --eval=healthbench --model=deepseek-reasoner`
 
 You can also evaluate physician ideal completions or reference completions against the HealthBench rubrics. To do so, run the following command:
 - To evaluate physician ideal completions: `python -m simple-evals.healthbench_eval --run_mode=physician_completions`
@@ -33,7 +45,8 @@ from .sampler.chat_completion_sampler import (
 )
 from .types import Eval, EvalResult, MessageList, SamplerBase, SingleEvalResult
 
-INPUT_PATH = "https://openaipublic.blob.core.windows.net/simple-evals/healthbench/2025-05-07-06-14-12_oss_eval.jsonl"
+#INPUT_PATH = "https://openaipublic.blob.core.windows.net/simple-evals/healthbench/2025-05-07-06-14-12_oss_eval.jsonl"
+INPUT_PATH = "C:/Users/LMC/Desktop/code/2025-05-07-06-14-12_oss_eval.jsonl"
 INPUT_PATH_HARD = "https://openaipublic.blob.core.windows.net/simple-evals/healthbench/hard_2025-05-08-21-00-10.jsonl"
 INPUT_PATH_CONSENSUS = "https://openaipublic.blob.core.windows.net/simple-evals/healthbench/consensus_2025-05-09-20-00-46.jsonl"
 
@@ -292,7 +305,9 @@ class HealthBenchEval(Eval):
             input_path = INPUT_PATH
         else:
             assert False, f"Invalid subset name: {subset_name}"
-        with bf.BlobFile(input_path, "rb") as f:
+        print(f"HealthBenchEval: Loading examples from {input_path}")
+        # with bf.BlobFile(input_path, "rb") as f:
+        with open(input_path, "r") as f:
             examples = [json.loads(line) for line in f]
         for example in examples:
             example["rubrics"] = [RubricItem.from_dict(d) for d in example["rubrics"]]
@@ -445,6 +460,7 @@ class HealthBenchEval(Eval):
 
     def __call__(self, sampler: SamplerBase) -> EvalResult:
         def fn(row: dict):
+            print("ENTER - fn")
             prompt_messages = row["prompt"]
 
             if self.physician_completions_mode is not None:
@@ -452,6 +468,7 @@ class HealthBenchEval(Eval):
                 response_usage = None
                 actual_queried_prompt_messages = prompt_messages
             else:
+                print("CALL - sampler.__call__")
                 sampler_response = sampler(prompt_messages)
                 response_text = sampler_response.response_text
                 response_dict = sampler_response.response_metadata
@@ -555,6 +572,7 @@ def physician_completions_main(
     num_examples: int | None = None,
     n_threads: int = 120,
 ):
+    print("ENTER - physician_completions_main")
     now = datetime.now()
     date_str = now.strftime("%Y%m%d_%H%M")
 

@@ -18,12 +18,41 @@ from .humaneval_eval import HumanEval
 from .sampler.chat_completion_sampler import (
     OPENAI_SYSTEM_MESSAGE_API,
     OPENAI_SYSTEM_MESSAGE_CHATGPT,
+    DS_SYSTEM_MESSAGE_API,
     ChatCompletionSampler,
 )
 from .sampler.claude_sampler import ClaudeCompletionSampler, CLAUDE_SYSTEM_MESSAGE_LMSYS
 from .sampler.o_chat_completion_sampler import OChatCompletionSampler
 from .sampler.responses_sampler import ResponsesSampler
 from .simpleqa_eval import SimpleQAEval
+
+
+def load_env_file(env_file_path=".env"):
+    """
+    从.env文件读取key=value对，并写入环境变量
+    
+    Args:
+        env_file_path: .env文件的路径，默认为当前目录下的.env文件
+    """
+    import os
+    
+    try:
+        keys = []
+        with open(env_file_path, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith("#"):
+                    continue
+                    
+                key, value = line.split("=")
+                os.environ[key.strip()] = value.strip()
+                keys.append(key.strip())
+        print(f"成功从{env_file_path}加载环境变量")
+        print(f"加载的环境变量：{keys}")
+    except FileNotFoundError:
+        print(f"警告：找不到环境变量文件 {env_file_path}")
+    except Exception as e:
+        print(f"加载环境变量时出错：{str(e)}")
 
 
 def main():
@@ -233,6 +262,15 @@ def main():
         "claude-3-haiku-20240307": ClaudeCompletionSampler(
             model="claude-3-haiku-20240307",
         ),
+        # Deepseek models:
+        "deepseek-chat": ChatCompletionSampler(
+            model="deepseek-chat", # V3
+            system_message=DS_SYSTEM_MESSAGE_API,
+        ),
+        "deepseek-reasoner": ChatCompletionSampler(
+            model="deepseek-reasoner", # R1
+            system_message=DS_SYSTEM_MESSAGE_API,
+        ),
     }
 
     if args.list_models:
@@ -251,6 +289,7 @@ def main():
 
     print(f"Running with args {args}")
 
+    # NOTE: the grader model is hard-coded as 'gpt-4.1-2025-04-14'
     grading_sampler = ChatCompletionSampler(
         model="gpt-4.1-2025-04-14",
         system_message=OPENAI_SYSTEM_MESSAGE_API,
@@ -260,6 +299,7 @@ def main():
     # ^^^ used for fuzzy matching, just for math
 
     def get_evals(eval_name, debug_mode):
+        print(f"Running eval: {eval_name}")
         num_examples = (
             args.examples if args.examples is not None else (5 if debug_mode else None)
         )
@@ -339,7 +379,8 @@ def main():
         for eval_name in evals_list:
             try:
                 evals[eval_name] = get_evals(eval_name, args.debug)
-            except Exception:
+            except Exception as e:
+                print(e)
                 print(f"Error: eval '{eval_name}' not found.")
                 return
     else:
@@ -361,7 +402,6 @@ def main():
             ]
         }
 
-    print(evals)
     debug_suffix = "_DEBUG" if args.debug else ""
     print(debug_suffix)
     mergekey2resultpath = {}
@@ -426,4 +466,5 @@ def main():
 
 
 if __name__ == "__main__":
+    load_env_file()
     main()

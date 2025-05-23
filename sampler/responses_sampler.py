@@ -22,9 +22,22 @@ class ResponsesSampler(SamplerBase):
         reasoning_model: bool = False,
         reasoning_effort: str | None = None,
     ):
-        self.api_key_name = "OPENAI_API_KEY"
-        assert os.environ.get("OPENAI_API_KEY"), "Please set OPENAI_API_KEY"
-        self.client = OpenAI()
+        # self.api_key_name = "OPENAI_API_KEY"
+        # assert os.environ.get("OPENAI_API_KEY"), "Please set OPENAI_API_KEY"
+
+        # NOTE: Handle deepseek models
+        if model.startswith('deepseek'):
+            api_key = str(os.environ.get("DS_API_KEY"))
+            base_url = str(os.environ.get("DS_BASE_URL"))
+        else:
+            api_key = str(os.environ.get("OPENAI_API_KEY"))
+            base_url = str(os.environ.get("OPENAI_BASE_URL"))
+
+        self.client = OpenAI(
+            api_key = api_key,
+            base_url = base_url
+        )
+
         self.model = model
         self.system_message = system_message
         self.temperature = temperature
@@ -53,6 +66,7 @@ class ResponsesSampler(SamplerBase):
         return {"role": role, "content": content}
 
     def __call__(self, message_list: MessageList) -> SamplerResponse:
+        print("ENTER - ResponsesSampler.__call__")
         if self.system_message:
             message_list = [
                 self._pack_message("developer", self.system_message)
